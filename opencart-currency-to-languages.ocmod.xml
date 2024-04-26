@@ -1,0 +1,435 @@
+<?xml version="1.0" encoding="utf-8"?>
+<modification>
+    <name>Assign currency to languages</name>
+    <code>opencart-currency-to-languages</code>
+    <version>1.0.0</version>
+    <link>an.postoliuk@gmail.com</link>
+    <author>Andrii Postoliuk</author>
+    <file path="admin/language/english/localisation/currency.php">
+        <operation>
+            <search>
+               <![CDATA[$_['entry_status']         = 'Status';]]>
+            </search>
+            <add position="after">
+                <![CDATA[$_['entry_currency_languages']         = 'Languages';]]>
+            </add>
+        </operation>
+    </file>    
+    <file path="admin/language/russian/localisation/currency.php">
+        <operation>
+            <search>
+               <![CDATA[$_['entry_status']         = 'Статус';]]>
+            </search>
+            <add position="after">
+                <![CDATA[$_['entry_currency_languages']         = 'Отображать в языках:';]]>
+            </add>
+        </operation>
+    </file>      
+    <file path="admin/language/ukrainian/localisation/currency.php">
+        <operation>
+            <search>
+               <![CDATA[$_['entry_status']         = 'Статус';]]>
+            </search>
+            <add position="after"><![CDATA[$_['entry_currency_languages']         = 'Відображати в мовах:';]]>
+            </add>
+        </operation>
+    </file>           
+    <file path="admin/controller/localisation/currency.php">
+        <operation>
+            <search>
+               <![CDATA[$data['entry_status'] = $this->language->get('entry_status');]]>
+            </search>
+            <add position="after">
+                <![CDATA[$data['entry_currency_languages'] = $this->language->get('entry_currency_languages');]]>
+            </add>
+        </operation>
+        <operation>
+            <search>
+               <![CDATA[if (isset($this->request->post['status'])) {]]>
+            </search>
+            <add position="before"><![CDATA[
+    		// Languages
+    		$this->load->model('localisation/language');
+    
+    		$data['languages'] = $this->model_localisation_language->getLanguages();		
+    		
+    		if (isset($this->request->post['currency_language'])) {
+    			$data['currency_language'] = $this->request->post['currency_language'];
+    		} elseif (isset($this->request->get['currency_id'])) {
+    			$data['currency_language'] = $this->model_localisation_currency->getCurrencyLanguages($this->request->get['currency_id']);
+    		} else {
+    			$data['currency_language'] = array(0);
+    		}
+            ]]>
+            </add>
+        </operation>        
+    </file>       
+    <file path="admin/model/localisation/currency.php">
+        <operation>
+            <search>
+               <![CDATA[$this->db->query("INSERT INTO " . DB_PREFIX . "currency SET title = '" . $this->db->escape($data['title']) . "', code = '" . $this->db->escape($data['code']) . "', symbol_left = '" . $this->db->escape($data['symbol_left']) . "', symbol_right = '" . $this->db->escape($data['symbol_right']) . "', decimal_place = '" . $this->db->escape($data['decimal_place']) . "', value = '" . $this->db->escape($data['value']) . "', status = '" . (int)$data['status'] . "', date_modified = NOW()");]]>
+            </search>
+            <add position="after">
+            <![CDATA[
+            $currency_id = $this->db->getLastId();
+            
+		    if (isset($data['currency_language'])) {
+			    foreach ($data['currency_language'] as $language) {
+				    $this->db->query("INSERT INTO `" . DB_PREFIX . "currency_to_language` SET `currency_id` = " . (int)$currency_id . ", language_id = " . (int)$language['language_id']);
+			    }
+		    }
+            ]]>
+            </add>
+        </operation>     
+        <operation>
+            <search>
+               <![CDATA[$this->db->query("UPDATE " . DB_PREFIX . "currency SET title = '" . $this->db->escape($data['title']) . "', code = '" . $this->db->escape($data['code']) . "', symbol_left = '" . $this->db->escape($data['symbol_left']) . "', symbol_right = '" . $this->db->escape($data['symbol_right']) . "', decimal_place = '" . $this->db->escape($data['decimal_place']) . "', value = '" . $this->db->escape($data['value']) . "', status = '" . (int)$data['status'] . "', date_modified = NOW() WHERE currency_id = '" . (int)$currency_id . "'");]]>
+            </search>
+            <add position="after">
+            <![CDATA[
+            $this->db->query("DELETE FROM " . DB_PREFIX . "currency_to_language WHERE currency_id = '" . (int)$currency_id . "'");       
+            
+		    if (isset($data['currency_language'])) {
+			    foreach ($data['currency_language'] as $language) {
+				    $this->db->query("INSERT INTO `" . DB_PREFIX . "currency_to_language` SET `currency_id` = " . (int)$currency_id . ", language_id = " . (int)$language['language_id']);
+			    }
+		    }
+            ]]>
+            </add>
+        </operation>           
+        <operation>
+            <search>
+               <![CDATA[$this->db->query("DELETE FROM " . DB_PREFIX . "currency WHERE currency_id = '" . (int)$currency_id . "'");]]>
+            </search>
+            <add position="after">
+                <![CDATA[$this->db->query("DELETE FROM " . DB_PREFIX . "currency_to_language WHERE currency_id = '" . (int)$currency_id . "'");]]>
+            </add>
+        </operation>   
+        <operation>
+            <search>
+               <![CDATA[class ModelLocalisationCurrency extends Model {]]>
+            </search>
+            <add position="after">
+                <![CDATA[
+                public function getCurrencyLanguages($currency_id) {
+                    $product_category_data = array();
+    
+                    $query = $this->db->query("SELECT * FROM " . DB_PREFIX . "currency_to_language WHERE currency_id = '" . (int)$currency_id . "'");
+    
+                    foreach ($query->rows as $result) {
+        		    	$currency_language_data[] = $result['language_id'];
+        	    	}
+    
+            		return $currency_language_data;
+            	}
+            ]]>
+            </add>
+        </operation>   
+        <operation>
+            <search>
+               <![CDATA[if (isset($data['sort']) && in_array($data['sort'], $sort_data)) {]]>
+            </search>
+            <add position="before">
+                <![CDATA[
+                if (!empty($data['filter_language_id'])) {
+                    $sql .= " AS c LEFT JOIN " . DB_PREFIX . "currency_to_language AS cl ON (c.currency_id = cl.currency_id) WHERE cl.language_id = '" . (int)$this->db->escape($data['filter_language_id']) . "' AND c.status = '1'";
+                }                
+                ]]>
+            </add>
+        </operation>                 
+    </file>    
+    <file path="admin/view/template/localisation/currency_form.tpl">
+        <operation>
+            <search>
+               <![CDATA[<label class="col-sm-2 control-label" for="input-status"><?php echo $entry_status; ?></label>]]>
+            </search>
+            <add position="before">
+                <![CDATA[
+                <label class="col-sm-2 control-label"><?php echo $entry_currency_languages; ?></label>
+                <div class="col-sm-10">
+                  <div class="well well-sm" style="height: 150px; overflow: auto;">
+                    <?php foreach ($languages as $language) { ?>
+                    <div class="checkbox">
+                      <label>
+                        <?php if ((in_array(0, $currency_language)) || in_array($language['language_id'], $currency_language)) { ?>
+                        <input type="checkbox" name="currency_language[]" value="<?php echo $language['language_id']; ?>" checked="checked" />
+                        <?php echo $language['name']; ?>
+                        <?php } else { ?>
+                        <input type="checkbox" name="currency_language[]" value="<?php echo $language['language_id']; ?>" />
+                        <?php echo $language['name']; ?>
+                        <?php } ?>
+                      </label>
+                    </div>
+                    <?php } ?>
+                  </div>
+                </div>               
+               <div class="form-group">                
+                ]]>
+            </add>
+        </operation>
+    </file>       
+    <file path="catalog/model/localisation/currency.php">
+        <operation>
+            <search>
+               <![CDATA[$query = $this->db->query("SELECT * FROM " . DB_PREFIX . "currency ORDER BY title ASC");]]>
+            </search>
+            <add position="replace">
+                <![CDATA[
+            $query = $this->db->query("SELECT * FROM " . DB_PREFIX . "currency AS c LEFT JOIN " . DB_PREFIX . "currency_to_language AS cl ON (c.currency_id = cl.currency_id) WHERE cl.language_id = '" . (int)$this->config->get('config_language_id') . "' AND c.status = '1' ORDER BY title ASC");
+            ]]>
+            </add>
+        </operation>    
+        <operation>
+            <search>
+               <![CDATA[class ModelLocalisationCurrency extends Model {]]>
+            </search>
+            <add position="after">
+                <![CDATA[
+	            public function getCurrency($currency_id) {
+		            $query = $this->db->query("SELECT DISTINCT * FROM " . DB_PREFIX . "currency WHERE currency_id = '" . (int)$this->db->escape($currency_id) . "'");
+
+		            return $query->row;
+	            }
+            ]]>
+            </add>
+        </operation>        
+        <operation>
+            <search>
+               <![CDATA[('currency']]>
+            </search>
+            <add position="replace">
+                <![CDATA[('currency_' . $this->config->get('config_language_id')]]>
+            </add>
+        </operation>         
+    </file>    
+    <file path="admin/language/english/localisation/language.php">
+        <operation>
+            <search>
+               <![CDATA[$_['entry_status']      = 'Status';]]>
+            </search>
+            <add position="after">
+                <![CDATA[$_['entry_default_currency']         = 'Default currency';]]>
+            </add>
+        </operation>
+    </file>    
+    <file path="admin/language/russian/localisation/language.php">
+        <operation>
+            <search>
+               <![CDATA[$_['entry_status']      = 'Статус';]]>
+            </search>
+            <add position="after">
+                <![CDATA[$_['entry_default_currency']         = 'Валюта умолчанию:';]]>
+            </add>
+        </operation>
+    </file>      
+    <file path="admin/language/ukrainian/localisation/language.php">
+        <operation>
+            <search>
+               <![CDATA[$_['entry_status']      = 'Статус';]]>
+            </search>
+            <add position="after"><![CDATA[$_['entry_default_currency']         = 'Валюта по замовчуванню:';]]>
+            </add>
+        </operation>
+    </file>     
+    <file path="admin/controller/localisation/language.php">
+        <operation>
+            <search>
+               <![CDATA[$data['entry_status'] = $this->language->get('entry_status');]]>
+            </search>
+            <add position="after">
+                <![CDATA[$data['entry_default_currency'] = $this->language->get('entry_default_currency');]]>
+            </add>
+        </operation>
+        <operation>
+            <search>
+               <![CDATA[if (isset($this->request->post['status'])) {]]>
+            </search>
+            <add position="before"><![CDATA[
+    		// Currencies
+            $this->load->model('localisation/currency');
+            $data['language_currencies'] = array();
+
+            if (isset($this->request->get['language_id'])) {
+                $filter_data = array(
+                    'filter_language_id' => $this->request->get['language_id']
+               );
+            } else {
+                $filter_data = array();
+            }
+
+            $data['language_currencies'][] = array(
+                'currency_id'   => 0,
+                'title'         => $this->language->get('text_default')
+            );        
+
+            $currencies_data = $this->model_localisation_currency->getCurrencies($filter_data);
+
+            if (!empty($currencies_data)) {
+                foreach ($currencies_data as $currency) {
+                    $data['language_currencies'][] = array(
+                        'currency_id'   => $currency['currency_id'],
+                        'title'         => $currency['title']
+                    );
+                }
+            }        
+
+            if (isset($this->request->post['default_currency_id'])) {
+                $data['default_currency_id'] = $this->request->post['default_currency_id'];
+            } elseif (!empty($language_info)) {
+                $data['default_currency_id'] = $language_info['default_currency_id'];
+            } else {
+                $data['default_currency_id'] = 0;
+            }
+            ]]>
+            </add>
+        </operation>        
+    </file>       
+    <file path="admin/view/template/localisation/language_form.tpl">
+        <operation>
+            <search>
+               <![CDATA[<label class="col-sm-2 control-label" for="input-status"><span data-toggle="tooltip" title="<?php echo $help_status; ?>"><?php echo $entry_status; ?></span></label>]]>
+            </search>
+            <add position="before">
+                <![CDATA[
+                    <label class="col-sm-2 control-label" for="input-default-currency-id"><?php echo $entry_default_currency; ?></label>
+                    <div class="col-sm-10">
+                      <select name="default_currency_id" id="input-default-currency-id" class="form-control">
+                        <?php foreach ($language_currencies as $language_currency) { ?>
+                           <?php if ($language_currency['currency_id'] == $default_currency_id) { ?>
+                              <option value="<?php echo $language_currency['currency_id']; ?>" selected="selected"><?php echo $language_currency['title']; ?></option>
+                            <?php } else { ?>
+                              <option value="<?php echo $language_currency['currency_id']; ?>"><?php echo $language_currency['title']; ?></option>
+                            <?php } ?>
+                        <?php } ?>
+                      </select>
+                    </div>
+                </div>            
+                <div class="form-group">                
+                ]]>
+            </add>
+        </operation>
+    </file>       
+    <file path="admin/model/localisation/language.php">
+        <operation>
+            <search>
+               <![CDATA[$this->db->query("INSERT INTO " . DB_PREFIX . "language SET name = '" . $this->db->escape($data['name']) . "', code = '" . $this->db->escape($data['code']) . "', locale = '" . $this->db->escape($data['locale']) . "', directory = '" . $this->db->escape($data['directory']) . "', image = '" . $this->db->escape($data['image']) . "', sort_order = '" . $this->db->escape($data['sort_order']) . "', status = '" . (int)$data['status'] . "'");]]>
+            </search>
+            <add position="replace">
+                <![CDATA[$this->db->query("INSERT INTO " . DB_PREFIX . "language SET name = '" . $this->db->escape($data['name']) . "', code = '" . $this->db->escape($data['code']) . "', locale = '" . $this->db->escape($data['locale']) . "', directory = '" . $this->db->escape($data['directory']) . "', default_currency_id = '" . (int)$this->db->escape($data['default_currency_id']) . "', image = '" . $this->db->escape($data['image']) . "', sort_order = '" . $this->db->escape($data['sort_order']) . "', status = '" . (int)$data['status'] . "'");]]>
+            </add>
+        </operation>    
+        <operation>
+            <search>
+               <![CDATA[$this->db->query("UPDATE " . DB_PREFIX . "language SET name = '" . $this->db->escape($data['name']) . "', code = '" . $this->db->escape($data['code']) . "', locale = '" . $this->db->escape($data['locale']) . "', directory = '" . $this->db->escape($data['directory']) . "', image = '" . $this->db->escape($data['image']) . "', sort_order = '" . $this->db->escape($data['sort_order']) . "', status = '" . (int)$data['status'] . "' WHERE language_id = '" . (int)$language_id . "'");]]>
+            </search>
+            <add position="replace">
+                <![CDATA[$this->db->query("UPDATE " . DB_PREFIX . "language SET name = '" . $this->db->escape($data['name']) . "', code = '" . $this->db->escape($data['code']) . "', locale = '" . $this->db->escape($data['locale']) . "', directory = '" . $this->db->escape($data['directory']) . "', default_currency_id = '" . (int)$this->db->escape($data['default_currency_id']) . "', image = '" . $this->db->escape($data['image']) . "', sort_order = '" . $this->db->escape($data['sort_order']) . "', status = '" . (int)$data['status'] . "' WHERE language_id = '" . (int)$language_id . "'");]]>
+            </add>
+        </operation>     
+        <operation>
+            <search>
+               <![CDATA[$this->db->query("DELETE FROM " . DB_PREFIX . "recurring_description WHERE language_id = '" . (int)$language_id . "'");]]>
+            </search>
+            <add position="after">
+                <![CDATA[$this->db->query("DELETE FROM " . DB_PREFIX . "currency_to_language WHERE language_id = '" . (int)$language_id . "'");]]>
+            </add>
+        </operation>            
+    </file>   
+    <file path="catalog/model/localisation/language.php">
+        <operation>
+            <search>
+               <![CDATA[$language_data[$result['code']] = array(]]>
+            </search>
+            <add position="after">
+                <![CDATA['default_currency_id'   => $result['default_currency_id'],]]>
+            </add>
+        </operation>   
+        <operation>
+            <search>
+               <![CDATA[class ModelLocalisationLanguage extends Model {]]>
+            </search>
+            <add position="after">
+                <![CDATA[
+            	public function getLanguageByCode($code) {
+            		$query = $this->db->query("SELECT * FROM " . DB_PREFIX . "language WHERE code = '" . $code . "'");
+
+            		return $query->row;
+            	}                
+                ]]>
+            </add>
+        </operation>          
+    </file>         
+    <file path="catalog/controller/common/language.php">
+        <operation>
+            <search>
+               <![CDATA[$this->session->data['language'] = $this->request->post['code'];]]>
+            </search>
+            <add position="after">
+                <![CDATA[
+                $this->load->model('localisation/language');
+
+                $language_data = $this->model_localisation_language->getLanguageByCode($this->request->post['code']);
+
+                if (empty($language_data)) {
+                    $this->currency->set($this->config->get('config_currency'));
+                } else {
+                    $this->load->model('localisation/currency');
+
+                    $currency_data = $this->model_localisation_currency->getCurrency($language_data['default_currency_id']);
+
+                    if (empty($currency_data)) {
+                       $this->currency->set($this->config->get('config_currency'));
+                    } else {
+                       $this->currency->set($currency_data['code']);
+                    }
+                } 
+                ]]>
+            </add>
+        </operation>           
+    </file>   
+    <file path="system/library/currency.php">
+        <operation>
+            <search>
+               <![CDATA[$this->set($this->config->get('config_currency'));]]>
+            </search>
+            <add position="replace">
+                <![CDATA[
+                $query = $this->db->query("SELECT default_currency_id FROM " . DB_PREFIX . "language WHERE language_id = '" . (int)$this->config->get('config_language_id') . "'");
+
+                if (empty($query->row['default_currency_id'])) {
+                    $this->set($this->config->get('config_currency'));
+                } else {
+                    $currency_id =  $query->row['default_currency_id'];
+                    $query = $this->db->query("SELECT code FROM " . DB_PREFIX . "currency WHERE currency_id = '" . (int)$currency_id . "'");
+
+                    if (empty($query->row['code'])) {
+                         $this->set($this->config->get('config_currency'));
+                    } else {
+                         $this->set($query->row['code']);
+                    }
+                }                
+                ]]>
+            </add>
+        </operation>    
+        <operation>
+            <search>
+               <![CDATA[public function set($currency) {]]>
+            </search>
+            <add position="after">
+                <![CDATA[
+                $query = $this->db->query("SELECT COUNT(c.currency_id) AS total FROM " . DB_PREFIX . "currency AS c LEFT JOIN " . DB_PREFIX . "currency_to_language AS cl ON (c.currency_id = cl.currency_id) WHERE cl.language_id = '" . (int)$this->config->get('config_language_id') . "' AND c.code = '" . $currency .  "' AND c.status = '1' ORDER BY title ASC");
+
+                if (empty($query->row['total'])) {
+                    $query = $this->db->query("SELECT default_currency_id FROM " . DB_PREFIX . "language WHERE language_id = '" . (int)$this->config->get('config_language_id') . "'");
+
+                    $currency_id =  $query->row['default_currency_id'];
+
+                    $query = $this->db->query("SELECT code FROM " . DB_PREFIX . "currency WHERE currency_id = '" . (int)$currency_id . "'");
+
+                   $currency = $query->row['code'];
+                }              
+                ]]>
+            </add>
+        </operation>          
+    </file>         
+</modification>
